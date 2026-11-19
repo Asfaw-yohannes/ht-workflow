@@ -1,0 +1,115 @@
+HOW THE SCRIPTS FIT TOGETHER
+============================
+
+The repository has two layers:
+
+  scripts/      The programs you run, one after another. They do NOT import
+                each other: each script reads the files the previous one wrote.
+
+  src/htads/    A library of functions that the scripts import. You never run
+                these files directly.
+
+Every step reads config.yaml (Miller indices, adsorbates, SLURM settings,
+VASP settings, reference energies).
+
+
+1. RUN ORDER: HOW THE SCRIPTS HAND OFF THROUGH FILES
+----------------------------------------------------
+
+  data/mp_ids.csv + data/bulk_input/<mp_id>.cif  (or Materials Project, --fetch)
+        |
+        v
+  [0]  relax_bulk.py --submit     -> runs_bulk/<material>/   (VASP jobs; wait)
+  [0b] relax_bulk.py --collect    -> data/bulk/<mp_id>.traj
+        |
+        v
+  [1]  make_slabs.py              -> runs/<material>/<miller>/<term>/*_initial.traj
+                                     slabs_summary.csv
+        |
+        v
+  [2]  setup_adsorption.py --submit
+                                  -> <term>/<adsorbate>/<site>/   (VASP jobs)
+                                     <term>/clean/1/              (VASP job; wait)
+        |
+        +--> [3] collect_energies.py      (optional)
+        |         -> energies.csv  (job status and total energies)
+        v
+  [4]  adsorption_energies.py     -> adsorption_energies.csv  (every site)
+                                     adsorption_best.csv      (lowest per surface)
+
+  Step | Script                     | Reads                               | Writes
+  -----+----------------------------+-------------------------------------+------------------------------------------
+  0    | relax_bulk.py --submit     | config.yaml, data/mp_ids.csv,       | runs_bulk/<material>/ job folders
+       |                            | data/bulk_input/<mp_id>.cif         |
+  0b   | relax_bulk.py --collect    | runs_bulk/<material>/final.traj     | data/bulk/<mp_id>.traj
+  1    | make_slabs.py              | data/bulk/<mp_id>.traj              | runs/.../<term>/*_initial.traj,
+       |                            |                                     | slabs_summary.csv
+  2    | setup_adsorption.py        | the slab files from step 1          | <term>/<adsorbate>/<site>/ and
+       |                            |                                     | <term>/clean/1/ job folders
+  3    | collect_energies.py        | relaxed_pbe.e in each job folder    | energies.csv
+  4    | adsorption_energies.py     | adsorbate + clean-slab results,     | adsorption_energies.csv,
+       |                            | gas_references in config.yaml       | adsorption_best.csv
+
+  examples/free_energy_example.py is not part of the chain. It prints the
+  free_energy_corrections block that step 4 reads from config.yaml to report
+  dG instead of dE.
+
+
+2. WHAT RUNS INSIDE EACH VASP JOB
+---------------------------------
+
+Steps 0 and 2 both fill in the same two templates from templates/:
+
+  job.slurm.tmpl      -> job.slurm   sets up the cluster environment, runs relax.py
+  vasp_relax.py.tmpl  -> relax.py    reads *_initial.traj, runs VASP through ASE,
+                                     writes final.traj and relaxed_pbe.e
+
+relaxed_pbe.e is also the "finished" marker: re-runs skip folders that have
+it, and steps 3 and 4 read the energy from it.
+
+
+3. WHICH LIBRARY MODULES EACH SCRIPT IMPORTS
+--------------------------------------------
+
+  Script                     | Imports from src/htads/
+  ---------------------------+------------------------------------------------------------
+  relax_bulk.py              | config, kpoints (bulk mesh), jobs
+  make_slabs.py              | config, slabs
+  setup_adsorption.py        | config, adsorbates, atoms_ops (sites, placement),
+                             | kpoints (slab mesh), jobs
+  collect_energies.py        | config, jobs
+  adsorption_energies.py     | config, adsorbates, energies, jobs
+  free_energy_example.py     | energies
+  tests/test_basic.py        | atoms_ops, adsorbates, kpoints, slabs, energies
+
+Inside the library, two modules import others:
+
+  slabs.py      imports  atoms_ops.py   (to orient slabs upwards)
+  atoms_ops.py  imports  settings.py    (default slab-generator settings)
+
+All other modules (config, jobs, kpoints, adsorbates, energies, settings)
+stand alone and import only outside packages.
+
+
+4. WHAT EACH LIBRARY MODULE DOES
+--------------------------------
+
+  Module         | Role                                                    | Outside packages
+  ---------------+---------------------------------------------------------+-------------------
+  config.py      | reads config.yaml and mp_ids.csv; builds folder names   | PyYAML
+  jobs.py        | fills templates, checks done/submitted status, sbatch   | (standard library)
+  kpoints.py     | k-point meshes for slabs and bulks                      | NumPy
+  slabs.py       | slab thickness, vacuum, terminations, tiling,           | pymatgen, ASE
+                 | fixed bottom layers                                     |
+  atoms_ops.py   | adsorption sites, adsorbate placement, orientation,     | pymatgen, ASE, SciPy
+                 | fingerprints                                            |
+  adsorbates.py  | starting geometries of H, OH, CO, CHO, ...              | ASE
+  settings.py    | default pymatgen slab settings                          | (none)
+  energies.py    | reference energies, E_ads, movement checks              | NumPy, ASE
+
+
+PRACTICAL CONSEQUENCE
+---------------------
+
+If you change something in src/htads/, every script that imports that module
+picks up the change. If you change a script, nothing else is affected.
