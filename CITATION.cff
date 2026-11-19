@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the article below."
+title: "ht-adsorption: high-throughput DFT adsorption workflow"
+authors:
+  - family-names: Yohannes
+    given-names: Asfaw G.
+license: LGPL-3.0-only
+preferred-citation:
+  type: article
+  title: "Combined High-Throughput DFT and ML Screening of Transition Metal Nitrides for Electrochemical CO2 Reduction"
+  authors:
+    - family-names: Yohannes
+      given-names: Asfaw G.
+    - family-names: Lee
+      given-names: Chaehyeon
+    - family-names: Talebi
+      given-names: Pooya
+    - family-names: Mok
+      given-names: Dong Hyeon
+    - family-names: Karamad
+      given-names: Mohammadreza
+    - family-names: Back
+      given-names: Seoin
+    - family-names: Siahrostami
+      given-names: Samira
+  journal: "ACS Catalysis"
+  volume: 13
+  issue: 13
+  start: 9007
+  end: 9017
+  year: 2023
+  doi: "10.1021/acscatal.3c01249"

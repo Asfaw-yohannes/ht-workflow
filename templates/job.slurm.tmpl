@@ -1,0 +1,36 @@
+#!/bin/bash
+#SBATCH --job-name=${job_name}
+${account_line}
+#SBATCH --nodes=${nodes}
+#SBATCH --ntasks-per-node=${ntasks_per_node}
+#SBATCH --mem=${mem}
+#SBATCH --time=${time}
+#SBATCH --partition=${partition}
+#SBATCH --output=slurm-%j.out
+#SBATCH --error=slurm-%j.err
+
+# Generated from templates/job.slurm.tmpl by scripts/setup_adsorption.py
+
+set -u
+unset LANG; export LC_ALL=C
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+ulimit -s unlimited
+
+${module_lines}
+
+# How ASE launches VASP, and where the POTCARs are (set in config.yaml)
+export ASE_VASP_COMMAND="${vasp_command}"
+export VASP_PP_PATH="${vasp_pp_path}"
+
+cd "$$SLURM_SUBMIT_DIR"
+echo "START   $$(date '+%F %T')  job $$SLURM_JOB_ID on $$SLURM_JOB_NODELIST ($$SLURM_NTASKS tasks)"
+
+${python} relax.py > out.txt 2>&1
+exit_code=$$?
+
+# Remove large VASP files we do not keep
+rm -f EIGENVAL IBZKPT PCDAT PROCAR CHG CHGCAR XDATCAR ELFCAR LOCPOT \
+      PROOUT TMPCAR WAVECAR DOSCAR vasp.dipcor
+
+echo "END     $$(date '+%F %T')  exit code $$exit_code"
+exit $$exit_code

@@ -1,0 +1,31 @@
+# Local configuration (cluster names, accounts, paths)
+config.yaml
+.env
+.gaspyrc.json
+
+# Calculation output
+runs/
+slab_previews/
+slabs_summary.csv
+energies.csv
+*.traj
+
+# VASP files (POTCARs are licensed - never commit them)
+POTCAR*
+OUTCAR*
+CONTCAR*
+WAVECAR*
+CHG*
+vasprun.xml
+vasp.out
+slurm-*.out
+slurm-*.err
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+runs_bulk/
+adsorption_energies.csv
+adsorption_best.csv

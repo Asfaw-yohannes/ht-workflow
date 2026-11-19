@@ -1,0 +1,14 @@
+name: htads
+channels: [conda-forge]
+# Tested with the minimum versions below (Python 3.10) and with
+# Python 3.13, ASE 3.29, pymatgen 2026.10.31, NumPy 2.5, SciPy 1.18.
+dependencies:
+  - python>=3.10
+  - numpy>=1.26
+  - scipy>=1.11
+  - ase>=3.23
+  - pymatgen>=2024.1.27
+  - pyyaml
+  - matplotlib      # only for make_slabs.py --png
+  - pytest
+  # - mp-api       # only for relax_bulk.py --fetch (pip install mp-api)

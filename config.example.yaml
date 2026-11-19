@@ -1,0 +1,99 @@
+# Copy to config.yaml and edit for your cluster. config.yaml is git-ignored.
+
+materials_file: data/mp_ids.csv      # columns: mp_id,formula
+bulk_input_dir: data/bulk_input      # unrelaxed bulks for relax_bulk.py: <mp_id>.cif/.traj
+bulk_runs_dir: runs_bulk             # bulk relaxation jobs
+bulk_dir: data/bulk                  # relaxed bulks used by make_slabs.py: <mp_id>.traj
+bulk_kpoint_density: 30.0            # k_i = ceil(density / |a_i|) in all three directions
+output_dir: runs
+
+miller_indices:
+  - [1, 0, 0]
+  # - [1, 1, 0]
+  # - [1, 1, 1]
+
+adsorbates: [CHO, CO, OH, H]         # names from src/htads/adsorbates.py
+include_clean_slab: true
+kpoint_density: 20.0                 # k_i = ceil(density / |a_i|), k_3 = 1
+
+slabs:
+  max_terminations: 4
+  min_slab_height: 7.0               # A, height of the OUC stack used for thickness
+  min_vacuum: 17.0                   # A
+  min_atoms: 20                      # tile in-plane until at least this many atoms
+
+slurm:
+  partition: your_partition
+  account: null                      # e.g. def-yourpi; null to omit the line
+  nodes: 1
+  ntasks_per_node: 20
+  mem: 45G
+  time: "48:00:00"
+  modules: []                        # e.g. [intel/2020, openmpi, vasp/5.4.4]
+  python: python3
+  vasp_command: "mpirun vasp_std"    # or "srun vasp_std"
+  vasp_pp_path: /path/to/vasp/potentials   # folder containing potpaw_PBE
+
+# Initial magnetic moments; ISPIN=2 is used only if one of these is present.
+magmoms: {Co: 2, Cr: 2, Fe: 2, Mn: 2, Mo: 2, Ni: 2, V: 2, W: 2}
+
+# Passed directly to ase.calculators.vasp.Vasp (kpts and ispin are set per job).
+vasp:
+  xc: PBE
+  gamma: true
+  prec: accurate
+  encut: 500
+  ismear: 0
+  # sigma: 0.05                      # VASP default is 0.2 eV; consider setting
+  algo: Fast
+  nelm: 250
+  ediff: 1.0e-6
+  ediffg: -0.055555                  # check: unusual value, typical -0.05 / -0.03
+  ibrion: 1
+  nsw: 900
+  ivdw: 12
+  lorbit: 12
+  lreal: Auto
+  lcharg: false
+  ncore: 4                           # must divide nodes*ntasks_per_node (was 8 with 20 tasks)
+  # ldipol: true                     # dipole correction for one-sided adsorption
+  # idipol: 3
+
+# Bulk relaxation (scripts/relax_bulk.py). Cell shape and volume relaxed (ISIF=3).
+# Suggested defaults, not taken from your paper: check them. With ISIF=3, a
+# second relaxation from the relaxed cell is good practice (Pulay stress).
+bulk_vasp:
+  xc: PBE
+  gamma: true
+  prec: accurate
+  encut: 500
+  ismear: 0
+  algo: Fast
+  nelm: 250
+  ediff: 1.0e-6
+  ediffg: -0.02
+  ibrion: 2
+  isif: 3
+  nsw: 200
+  ivdw: 12
+  lreal: false
+  lcharg: false
+  ncore: 4
+
+# Gas-phase total energies (eV) for the adsorption-energy references, computed
+# with the same VASP settings as the slabs. mu_H = 1/2 H2, mu_O = H2O - H2,
+# mu_C = CO - mu_O. Add N2 for nitrogen-containing adsorbates.
+gas_references:
+  CO: -14.7850961
+  H2O: -14.22925213
+  H2: -6.77325473
+  # N2: ...
+
+# Optional zero-point/entropy corrections added to E_ads per adsorbate (eV).
+free_energy_corrections: {}
+  # CO: 0.0
+
+# Sites whose adsorbate or slab atoms moved more than this (A) are flagged.
+movement_limits:
+  adsorbate: 1.5
+  slab: 1.5
